@@ -21,26 +21,63 @@ import (
 	"math"
 )
 
-// evalConst reads any valid Go constant expression, and returns its value.
+// Float32 computes the float expression.
+func Float32(expr string) (float32, error) { return Scope{}.Float32(expr) }
+
+// Float64 computes the float expression.
+func Float64(expr string) (float64, error) { return Scope{}.Float64(expr) }
+
+// Complex64 computes the complex expression.
+func Complex64(expr string) (c complex64, err error) { return Scope{}.Complex64(expr) }
+
+// Complex128 computes the complex expression.
+func Complex128(expr string) (c complex128, err error) { return Scope{}.Complex128(expr) }
+
+// Int computes the int expression.
+func Int(expr string) (int64, error) { return Scope{}.Int(expr) }
+
+// Uint computes the int expression.
+func Uint(expr string) (uint64, error) { return Scope{}.Uint(expr) }
+
+// Bool computes the bool expression.
+func Bool(expr string) (bool, error) { return Scope{}.Bool(expr) }
+
+// String computes the string expression.
+func String(expr string) (string, error) { return Scope{}.String(expr) }
+
+// Scope contains a set of [constant.Value] that can be referenced by their name.
 //
-// It supports string, bool float and int computation, all that is represented by
-// [constant.Value] interface.
-// The result is always a [constant.Value].
-//
-// Most of the time you might be interested in converting it to a float64, or
-// an int64, or an uint64.
-// See constant.Float64Val() ... functions to convert the result down to your need.
-func evalConst(expr string) (constant.Value, error) {
-	tv, err := types.Eval(token.NewFileSet(), nil, token.NoPos, expr)
+// zero type is valid.
+type Scope struct {
+	p *types.Package
+}
+
+// eval expr in this Scope. nil value for 'p' is ok.
+func (s Scope) eval(expr string) (constant.Value, error) {
+	// c.main can be nil, and that is ok.
+	tv, err := types.Eval(token.NewFileSet(), s.p, token.NoPos, expr)
 	if err != nil {
 		return nil, err
 	}
 	return tv.Value, nil
 }
 
-// Float64 computes the float expression.
-func Float64(expr string) (float64, error) {
-	val, err := evalConst(expr)
+// return a non nil package.
+func (s *Scope) pack() *types.Package {
+	if s.p == nil {
+		s.p = types.NewPackage("main", "main")
+	}
+	return s.p
+}
+
+// assign a value to the variable 'name' if not already defined.
+func (s *Scope) assign(name string, tv types.TypeAndValue) {
+	s.pack().Scope().Insert(types.NewConst(token.NoPos, s.pack(), name, tv.Type, tv.Value))
+}
+
+// Float64 evaluates 'expr' as a float64.
+func (s Scope) Float64(expr string) (float64, error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return math.NaN(), err
 	}
@@ -53,9 +90,9 @@ func Float64(expr string) (float64, error) {
 	return f, nil
 }
 
-// Float32 computes the float expression.
-func Float32(expr string) (float32, error) {
-	val, err := evalConst(expr)
+// Float32  evaluates 'expr' as a float32.
+func (s Scope) Float32(expr string) (float32, error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return float32(math.NaN()), err
 	}
@@ -68,16 +105,16 @@ func Float32(expr string) (float32, error) {
 	return f, nil
 }
 
-// Complex128 computes the complex expression.
-func Complex128(expr string) (c complex128, err error) {
-	val, err := evalConst(expr)
+// Complex128  evaluates 'expr' as a complex128.
+func (s Scope) Complex128(expr string) (cplx complex128, err error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return
 	}
 	// Force conversion to a constant.Float type (or Unknown)
 	fval := constant.ToComplex(val)
 	if fval.Kind() == constant.Unknown {
-		return c, fmt.Errorf("not representable as a complex (%v): %q", val.Kind(), expr)
+		return cplx, fmt.Errorf("not representable as a complex (%v): %q", val.Kind(), expr)
 	}
 
 	r, _ := constant.Float64Val(constant.Real(fval)) // ignoring the bool about rounding
@@ -86,16 +123,16 @@ func Complex128(expr string) (c complex128, err error) {
 	return complex(r, i), nil
 }
 
-// Complex64 computes the complex expression.
-func Complex64(expr string) (c complex64, err error) {
-	val, err := evalConst(expr)
+// Complex64 evaluates 'expr' as a complex64.
+func (s Scope) Complex64(expr string) (cplx complex64, err error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return
 	}
 	// Force conversion to a constant.Float type (or Unknown)
 	fval := constant.ToComplex(val)
 	if fval.Kind() == constant.Unknown {
-		return c, fmt.Errorf("not representable as a complex (%v): %q", val.Kind(), expr)
+		return cplx, fmt.Errorf("not representable as a complex (%v): %q", val.Kind(), expr)
 	}
 
 	r, _ := constant.Float32Val(constant.Real(fval)) // ignoring the bool about rounding
@@ -104,9 +141,9 @@ func Complex64(expr string) (c complex64, err error) {
 	return complex(r, i), nil
 }
 
-// Int computes the int expression.
-func Int(expr string) (int64, error) {
-	val, err := evalConst(expr)
+// Int evaluates 'expr' as a int64.
+func (s Scope) Int(expr string) (int64, error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return 0, err
 	}
@@ -122,9 +159,9 @@ func Int(expr string) (int64, error) {
 	return i, nil
 }
 
-// Uint computes the int expression.
-func Uint(expr string) (uint64, error) {
-	val, err := evalConst(expr)
+// Uint evaluates 'expr' as an int64.
+func (s Scope) Uint(expr string) (uint64, error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return 0, err
 	}
@@ -140,9 +177,9 @@ func Uint(expr string) (uint64, error) {
 	return i, nil
 }
 
-// Bool computes the bool expression.
-func Bool(expr string) (bool, error) {
-	val, err := evalConst(expr)
+// Bool evaluates 'expr' as a bool.
+func (s Scope) Bool(expr string) (bool, error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return false, err
 	}
@@ -152,9 +189,9 @@ func Bool(expr string) (bool, error) {
 	return constant.BoolVal(val), nil
 }
 
-// String computes the string expression.
-func String(expr string) (string, error) {
-	val, err := evalConst(expr)
+// String evaluates 'expr' as a string.
+func (s Scope) String(expr string) (string, error) {
+	val, err := s.eval(expr)
 	if err != nil {
 		return "", err
 	}
@@ -162,4 +199,142 @@ func String(expr string) (string, error) {
 		return "", fmt.Errorf("not representable as a string (%v): %q", val.Kind(), expr)
 	}
 	return constant.StringVal(val), nil
+}
+
+// Assign evaluates 'expr' and assign its value to the variable 'name'.
+//
+// If the variable 'name' already exists, its value is not changed.
+func (s *Scope) Assign(name, expr string) error {
+	tv, err := types.Eval(token.NewFileSet(), s.p, token.NoPos, expr)
+	if err != nil {
+		return err
+	}
+	s.assign(name, tv)
+	return nil
+}
+
+// AssignValue directly assign the runtime value 'v' to the variable 'name'.
+// 'v' must be one of:
+//
+//	float64
+//	float32
+//	complex128
+//	complex64
+//	int64
+//	int32
+//	int16
+//	int8
+//	int
+//	uint64
+//	uint32
+//	uint16
+//	uint8
+//	uint
+//	bool
+//	string
+//
+// If the variable 'name' already exists, its value is not changed.
+func (s *Scope) AssignValue(name string, v any) {
+	switch o := v.(type) {
+	case float64:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedFloat],
+			Value: constant.MakeFloat64(o),
+		})
+	case float32:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedFloat],
+			Value: constant.MakeFloat64(float64(o)),
+		})
+	case complex128:
+		x := constant.MakeFloat64(real(o))
+		y := constant.MakeFloat64(imag(o))
+
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedComplex],
+			Value: constant.BinaryOp(x, token.ADD, constant.MakeImag(y)),
+		})
+	case complex64:
+		x := constant.MakeFloat64(float64(real(o)))
+		y := constant.MakeFloat64(float64(imag(o)))
+
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedComplex],
+			Value: constant.BinaryOp(x, token.ADD, constant.MakeImag(y)),
+		})
+	case int64:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeInt64(o),
+		})
+	case int32:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeInt64(int64(o)),
+		})
+	case int16:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeInt64(int64(o)),
+		})
+	case int8:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeInt64(int64(o)),
+		})
+	case int:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeInt64(int64(o)),
+		})
+	case uint64:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeUint64(o),
+		})
+	case uint32:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeUint64(uint64(o)),
+		})
+	case uint16:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeUint64(uint64(o)),
+		})
+	case uint8:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeUint64(uint64(o)),
+		})
+	case uint:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedInt],
+			Value: constant.MakeUint64(uint64(o)),
+		})
+	case bool:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedBool],
+			Value: constant.MakeBool(o),
+		})
+	case string:
+		s.assign(name, types.TypeAndValue{
+			Type:  types.Typ[types.UntypedString],
+			Value: constant.MakeString(o),
+		})
+	default:
+		panic(fmt.Sprintf("unsupported type %T", v))
+	}
+}
+
+// Import another [Scope] inside this one.
+//
+// Exposed variables in 'lib' can be referenced as `<name>.<var>`.
+//
+// Following the rules of Go, only Capitalized variables are exposed.
+//
+// Nesting Scopes is not supported (by Go).
+func (s *Scope) Import(name string, lib *Scope) {
+	pkgName := types.NewPkgName(token.NoPos, s.pack(), name, lib.pack())
+	s.pack().Scope().Insert(pkgName)
 }
