@@ -3,8 +3,8 @@
 // # Introduction
 //
 // When it comes to manually writing numbers, the usual literal format are not always the easiest.
-// How do you write the equivalent of 1 day but in seconds? "24*60*60" is probably easier than
-// figuring out it is "86400". Why, then asking your users to provide CLI arguments (or inputs in a textfield)
+// How do you write the equivalent of 1 day but in seconds? `24*60*60` is probably easier than
+// figuring out it is `86400`. Why, then asking your users to provide CLI arguments (or inputs in a textfield)
 // as a number, when you could easily ask them to enter it as a basic formula?
 //
 // Go has figure that out, and has created a powerful [constants] systems that can be
