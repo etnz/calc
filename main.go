@@ -2,7 +2,7 @@
 //
 // # Introduction
 //
-// When it comes to manually writing numbers, the usual literal format are not always the easiest.
+// When it comes to manually write numbers, using literals is not always the easiest way.
 // How do you write the equivalent of 1 day but in seconds? `24*60*60` is probably easier than
 // figuring out it is `86400`. Why, then asking your users to provide CLI arguments (or inputs in a textfield)
 // as a number, when you could easily ask them to enter it as a basic formula?
@@ -19,6 +19,8 @@ import (
 	"go/token"
 	"go/types"
 	"math"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Float32 computes the float expression.
@@ -333,8 +335,13 @@ func (s *Scope) AssignValue(name string, v any) {
 //
 // Following the rules of Go, only Capitalized variables are exposed.
 //
-// Nesting Scopes is not supported (by Go).
-func (s *Scope) Import(name string, lib *Scope) {
+// An error is returned if 'name' is exported.
+func (s *Scope) Import(name string, lib *Scope) error {
+	ch, _ := utf8.DecodeRuneInString(name)
+	if unicode.IsUpper(ch) {
+		return fmt.Errorf("package names cannot be exported: %v", name)
+	}
 	pkgName := types.NewPkgName(token.NoPos, s.pack(), name, lib.pack())
 	s.pack().Scope().Insert(pkgName)
+	return nil
 }
